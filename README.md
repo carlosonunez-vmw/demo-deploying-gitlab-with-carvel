@@ -3,9 +3,11 @@
 This demo shows you how you can use Tekton to deploy a GitLab
 infrastructure entirely within Kubernetes.
 
-![Watch the Video](https://youtu.be/1RzjV71VKO8)
+### Watch the Demo
 
-### Tech You'll Use
+![](https://youtu.be/1RzjV71VKO8)
+
+#### Tech You'll Use
 
 - Tanzu Kubernetes Grid
 - Tekton
