@@ -44,16 +44,6 @@ First, install the `kapp` client into your machine system-wide:
 sudo sh -c 'curl -L https://carvel.dev/install.sh | bash'
 ```
 
-Then use `kapp` to install the `kapp-controller` into your cluster. (The
-`kapp-controller` is used by `kapp` to deploy applications and manage them.)
-
-```sh
-kapp deploy -a kc -f https://github.com/vmware-tanzu/carvel-kapp-controller/releases/latest/download/release.yml -y
-```
-
-Finally, observe that `kapp` can keep track of your applications by running
-`kapp list -A`.
-
 #### Install Tekton
 
 Next, use `kapp` to package and install Tekton into your cluster.
