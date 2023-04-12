@@ -1,0 +1,23 @@
+#@ load("@ytt:data", "data")
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: #@ "{}-run-{}".format(data.values.pipeline_name, data.values.nonce)
+  namespace: pipelines
+spec:
+  pipelineRef:
+    name: gitlab-pipeline
+  params:
+    - name: cluster_name
+      value: #@ data.values.cluster_name
+    - name: team_name
+      value: #@ data.values.team_name
+  workspaces:
+    - name: config
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10M

@@ -3,6 +3,9 @@ kind: Pipeline
 metadata:
   name: gitlab-pipeline
 spec:
+  workspaces:
+    - name: config
+      description: Config files created by Tasks.
   params:
     - name: team_name
       type: string
@@ -15,12 +18,15 @@ spec:
       type: string
       description: >-
         The number of Linux runners to deploy.
+      default: "0"
     - name: num_windows_runners
       type: string
       description: >-
         The number of Windows runners to deploy.
+      default: "0"
     - name: users_to_create
       type: array
+      default: []
       description: >-
         A list of usernames to add into GitLab. They will have a default
         password and will need to change it upon logging in.
@@ -28,12 +34,18 @@ spec:
     - name: get-cluster-kubeconfig
       taskRef:
         name: kubeconfig
+      workspaces:
+        - name: config
+          workspace: config
       params:
         - name: cluster_name
           value: "$(params.cluster_name)"
     - name: install-gitlab
       taskRef:
         name: helm-kapp-install
+      workspaces:
+        - name: config
+          workspace: config
       params:
         - name: kubeconfig
           value: "$(tasks.get-cluster-kubeconfig.results.kubeconfig)"
@@ -54,8 +66,11 @@ spec:
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: get-cluster-kubeconfig
+  name: kubeconfig
 spec:
+  results:
+    - name: kubeconfig
+      description: The kubeconfig to use
   params:
     - name: cluster_name
       type: string
@@ -63,7 +78,10 @@ spec:
   volumes:
     - name: kubeconfig
       configMap:
-        name: default/example-cluster-configmap
+        name: kubeconfig
+  workspaces:
+    - name: config
+      description: Location to store config files into.
   steps:
     - name: fetch-kubeconfig
       image: ubuntu
@@ -73,8 +91,50 @@ spec:
       script: |
         #!/usr/bin/env bash
         if test "$(params.cluster_name)" == "example-cluster"
-        then cat /kubeconfig; exit
+        then cat /kubeconfig/* > "$(workspaces.config.path)/kubeconfig" ; exit
         fi
         >&2 echo "ERROR: Couldn't locate a kubeconfig for cluster $(params.cluster_name)"
         exit 1
 
+---
+
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: helm-kapp-install
+spec:
+  workspaces:
+    - name: config
+      description: Location to store config files into.
+  params:
+    - name: kubeconfig
+      type: string
+      description: The kubeconfig of the cluster to connect to. Assumes default context.
+    - name: helm_chart_repo
+      type: string
+      description: The URL to the Helm repo the chart is stored in.
+    - name: helm_chart
+      type: string
+      description: The name of the Helm chart.
+    - name: target_namespace
+      type: string
+      description: The target namespace to install the Helm chart contents into.
+    - name: values
+      type: array
+      description: An array of key-values to apply onto the chart.
+  steps:
+    - name: install-package
+      image: ubuntu
+      volumeMounts:
+        - name: "$(workspaces.config.path)/kubeconfig"
+          mountPath: /root/.kube/config
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        curl -L https://carvel.dev/install.sh | bash
+        helm repo add repo "$(values.helm_chart_repo)"
+        values=$(tr '\n' ' ' <<< "$(values.values)")
+        helm template repo/"$(values.helm_chart)" $values |
+          kapp deploy -n "$(values.target_namespace)" -a app-helm-$(values.helm_chart) \
+            -f - -c -y
