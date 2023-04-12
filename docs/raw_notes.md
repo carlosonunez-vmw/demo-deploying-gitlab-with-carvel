@@ -39,8 +39,6 @@
     - Work:
         - Fetches Gitlab Helm chart
         - Merges Helm chart and values file to install app into target Kubernetes cluster and namespace
-- AKO
-    - Input: new Ingress created by Gitlab Helm chart
     - Work:
         - Creates a Virtual Service to front the Ingress
         - Creates a VIP

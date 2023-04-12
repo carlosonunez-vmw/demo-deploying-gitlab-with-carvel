@@ -1,0 +1,80 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: gitlab-pipeline
+spec:
+  params:
+    - name: team_name
+      type: string
+      description: The name of the team requesting this GitLab instance.
+    - name: cluster_name
+      type: string
+      description: >-
+        The name of the Kubernetes cluster into which GitLab will be installed.
+    - name: num_linux_runners
+      type: string
+      description: >-
+        The number of Linux runners to deploy.
+    - name: num_windows_runners
+      type: string
+      description: >-
+        The number of Windows runners to deploy.
+    - name: users_to_create
+      type: array
+      description: >-
+        A list of usernames to add into GitLab. They will have a default
+        password and will need to change it upon logging in.
+  tasks:
+    - name: get-cluster-kubeconfig
+      taskRef:
+        name: kubeconfig
+      params:
+        - name: cluster_name
+          value: "$(params.cluster_name)"
+    - name: install-gitlab
+      taskRef:
+        name: helm-kapp-install
+      params:
+        - name: kubeconfig
+          value: "$(tasks.get-cluster-kubeconfig.results.kubeconfig)"
+        - name: helm_chart_repo
+          value: "https://charts.gitlab.io"
+        - name: helm_chart
+          value: gitlab/gitlab
+        - name: target_namespace
+          value: "$(params.team_name)-gitlab"
+        - name: values
+          value:
+            - domain="gitlab.$(params.team_name).cluster.example"
+      runAfter:
+        - get-cluster-kubeconfig
+
+---
+
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: get-cluster-kubeconfig
+spec:
+  params:
+    - name: cluster_name
+      type: string
+      description: The name of the cluster to fetch a kubeconfig for
+  volumes:
+    - name: kubeconfig
+      configMap:
+        name: default/example-cluster-configmap
+  steps:
+    - name: fetch-kubeconfig
+      image: ubuntu
+      volumeMounts:
+        - name: kubeconfig
+          mountPath: /kubeconfig
+      script: |
+        #!/usr/bin/env bash
+        if test "$(params.cluster_name)" == "example-cluster"
+        then cat /kubeconfig; exit
+        fi
+        >&2 echo "ERROR: Couldn't locate a kubeconfig for cluster $(params.cluster_name)"
+        exit 1
+
