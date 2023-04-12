@@ -5,7 +5,8 @@ infrastructure entirely within Kubernetes.
 
 ### Watch the Demo
 
-![](https://youtu.be/1RzjV71VKO8)
+
+[![Watch the video](https://img.youtube.com/vi/1RzjV71VKO8/default.jpg)](https://youtu.be/1RzjV71VKO8)
 
 #### Tech You'll Use
 
